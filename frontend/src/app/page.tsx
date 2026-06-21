@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Users, FileText, CheckCircle, ShieldAlert, Rss, Bot, Activity } from 'lucide-react';
+import { Users, FileText, CheckCircle, ShieldAlert, Rss, Bot, Activity, Clock } from 'lucide-react';
 import { api, AnalyticsOverview, formatDate, statusBadge } from '@/lib/api';
 
 function StatCard({ label, value, icon: Icon, color }: { label: string; value: number | string; icon: React.ElementType; color: string }) {
@@ -57,7 +57,8 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         <StatCard label="Total Communities" value={data.total_communities} icon={Users} color="bg-indigo-600" />
         <StatCard label="Generated Posts" value={data.total_generated_posts} icon={FileText} color="bg-cyan-600" />
-        <StatCard label="Published Posts" value={data.total_published_posts} icon={CheckCircle} color="bg-emerald-600" />
+        <StatCard label="Approved (Ready)" value={data.total_approved_posts} icon={Clock} color="bg-amber-600" />
+        <StatCard label="Published to Kawn" value={data.total_published_posts} icon={CheckCircle} color="bg-emerald-600" />
         <StatCard label="Blocked Posts" value={data.total_blocked_posts} icon={ShieldAlert} color="bg-red-600" />
         <StatCard label="Active Sources" value={data.active_sources} icon={Rss} color="bg-amber-600" />
         <StatCard label="AI Provider" value={activeProvider} icon={Bot} color="bg-purple-600" />

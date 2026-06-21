@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     news_api_key: str = ""
     seed_sample_data: bool = False
 
+    kawn_app_api_url: str = ""
+    kawn_app_api_key: str = ""
+    kawn_auto_publish: bool = False
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

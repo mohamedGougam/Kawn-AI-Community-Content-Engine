@@ -12,6 +12,17 @@ logger = logging.getLogger(__name__)
 
 INIT_SQL_PATH = Path(__file__).resolve().parent.parent / "database" / "init.sql"
 
+SCHEMA_MIGRATIONS = """
+ALTER TABLE communities ADD COLUMN IF NOT EXISTS kawn_community_id VARCHAR(100);
+ALTER TABLE generated_posts ADD COLUMN IF NOT EXISTS kawn_post_id VARCHAR(100);
+
+UPDATE generated_posts
+SET status = 'approved', published_at = NULL
+WHERE status = 'published' AND kawn_post_id IS NULL;
+
+UPDATE analytics SET posts_published = 0;
+"""
+
 
 def _asyncpg_dsn(database_url: str) -> tuple[str, bool]:
     """Convert SQLAlchemy URL to asyncpg DSN and detect SSL requirement."""
@@ -46,16 +57,17 @@ async def ensure_database_schema() -> None:
 
     try:
         exists = await conn.fetchval("SELECT to_regclass('public.communities')")
-        if exists:
-            logger.info("Database schema already exists, skipping init.")
-            return
+        if not exists:
+            if not INIT_SQL_PATH.exists():
+                logger.error("init.sql not found at %s", INIT_SQL_PATH)
+                raise FileNotFoundError(f"Missing schema file: {INIT_SQL_PATH}")
 
-        if not INIT_SQL_PATH.exists():
-            logger.error("init.sql not found at %s", INIT_SQL_PATH)
-            raise FileNotFoundError(f"Missing schema file: {INIT_SQL_PATH}")
-
-        logger.info("Initializing database schema from init.sql...")
-        await conn.execute(INIT_SQL_PATH.read_text(encoding="utf-8"))
-        logger.info("Database schema initialized successfully.")
+            logger.info("Initializing database schema from init.sql...")
+            await conn.execute(INIT_SQL_PATH.read_text(encoding="utf-8"))
+            logger.info("Database schema initialized successfully.")
+        else:
+            logger.info("Applying schema migrations...")
+            await conn.execute(SCHEMA_MIGRATIONS)
+            logger.info("Schema migrations applied.")
     finally:
         await conn.close()

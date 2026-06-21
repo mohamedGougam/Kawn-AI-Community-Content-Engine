@@ -21,10 +21,10 @@ export default function AnalyticsPage() {
   }));
 
   const statusData = [
-    { name: 'Published', value: data.total_published_posts },
+    { name: 'Published to Kawn', value: data.total_published_posts },
+    { name: 'Approved', value: data.total_approved_posts },
     { name: 'Blocked', value: data.total_blocked_posts },
     { name: 'Failed', value: data.total_failed_posts },
-    { name: 'Other', value: Math.max(0, data.total_generated_posts - data.total_published_posts - data.total_blocked_posts - data.total_failed_posts) },
   ].filter((d) => d.value > 0);
 
   return (
@@ -38,7 +38,8 @@ export default function AnalyticsPage() {
         {[
           { label: 'Communities', value: data.total_communities },
           { label: 'Generated', value: data.total_generated_posts },
-          { label: 'Published', value: data.total_published_posts },
+          { label: 'Approved', value: data.total_approved_posts },
+          { label: 'Published to Kawn', value: data.total_published_posts },
           { label: 'Blocked', value: data.total_blocked_posts },
         ].map((s) => (
           <div key={s.label} className="card text-center">

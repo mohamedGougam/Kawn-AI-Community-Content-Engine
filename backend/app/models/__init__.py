@@ -71,6 +71,7 @@ class Community(Base):
     publishing_frequency: Mapped[str] = mapped_column(String(20), default="daily")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_child_safe: Mapped[bool] = mapped_column(Boolean, default=False)
+    kawn_community_id: Mapped[str | None] = mapped_column(String(100))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -217,6 +218,7 @@ class GeneratedPost(Base):
     )
     scheduled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    kawn_post_id: Mapped[str | None] = mapped_column(String(100))
     provider: Mapped[str | None] = mapped_column(String(50))
     model: Mapped[str | None] = mapped_column(String(100))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

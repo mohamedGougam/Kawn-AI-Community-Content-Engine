@@ -29,6 +29,7 @@ class CommunityCreate(BaseModel):
     publishing_frequency: str = "daily"
     is_active: bool = True
     is_child_safe: bool = False
+    kawn_community_id: str | None = None
 
 
 class CommunityUpdate(BaseModel):
@@ -45,6 +46,7 @@ class CommunityUpdate(BaseModel):
     publishing_frequency: str | None = None
     is_active: bool | None = None
     is_child_safe: bool | None = None
+    kawn_community_id: str | None = None
 
 
 class CommunityResponse(BaseModel):
@@ -64,6 +66,7 @@ class CommunityResponse(BaseModel):
     publishing_frequency: str
     is_active: bool
     is_child_safe: bool
+    kawn_community_id: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -130,6 +133,7 @@ class PostResponse(BaseModel):
     hashtags: list[str] = []
     poll_options: list[str] | None = None
     status: PostStatus
+    kawn_post_id: str | None = None
     sources: list[PostSourceRef] = []
     moderation: dict | None = None
     scheduled_at: datetime | None
@@ -169,6 +173,7 @@ class AnalyticsOverview(BaseModel):
     total_communities: int
     active_communities: int
     total_generated_posts: int
+    total_approved_posts: int
     total_published_posts: int
     total_blocked_posts: int
     total_failed_posts: int

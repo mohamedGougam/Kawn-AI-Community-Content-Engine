@@ -22,9 +22,14 @@ async def get_analytics_overview(db: AsyncSession = Depends(get_db)):
     ).scalar() or 0
 
     total_generated = (await db.execute(select(func.count(GeneratedPost.id)))).scalar() or 0
+    total_approved = (
+        await db.execute(
+            select(func.count(GeneratedPost.id)).where(GeneratedPost.status == PostStatus.APPROVED)
+        )
+    ).scalar() or 0
     total_published = (
         await db.execute(
-            select(func.count(GeneratedPost.id)).where(GeneratedPost.status == PostStatus.PUBLISHED)
+            select(func.count(GeneratedPost.id)).where(GeneratedPost.kawn_post_id.isnot(None))
         )
     ).scalar() or 0
     total_blocked = (
@@ -78,6 +83,7 @@ async def get_analytics_overview(db: AsyncSession = Depends(get_db)):
         total_communities=total_communities,
         active_communities=active_communities,
         total_generated_posts=total_generated,
+        total_approved_posts=total_approved,
         total_published_posts=total_published,
         total_blocked_posts=total_blocked,
         total_failed_posts=total_failed,

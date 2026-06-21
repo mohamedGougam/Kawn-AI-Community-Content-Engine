@@ -30,6 +30,7 @@ def _to_response(community: Community) -> CommunityResponse:
         publishing_frequency=community.publishing_frequency,
         is_active=community.is_active,
         is_child_safe=community.is_child_safe,
+        kawn_community_id=community.kawn_community_id,
         created_at=community.created_at,
         updated_at=community.updated_at,
     )
@@ -80,6 +81,7 @@ async def create_community(data: CommunityCreate, db: AsyncSession = Depends(get
         publishing_frequency=data.publishing_frequency,
         is_active=data.is_active,
         is_child_safe=data.is_child_safe,
+        kawn_community_id=data.kawn_community_id,
     )
     db.add(community)
     await db.flush()

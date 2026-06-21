@@ -11,6 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.config import get_settings
 from app.models import (
     AIAnalysis,
     AISummary,
@@ -256,6 +257,16 @@ class ContentPipeline:
         )
 
         await self.moderate_and_publish(post, is_child_safe)
+
+        settings = get_settings()
+        if settings.kawn_auto_publish and post.status == PostStatus.APPROVED:
+            community = await self._get_community(community_id_val)
+            if community:
+                try:
+                    await self.publish_to_kawn(post, community)
+                except Exception as e:
+                    logger.warning("Auto-publish to Kawn App failed for %s: %s", post.id, e)
+
         await self._update_analytics(community_id_val, post)
         await self.session.refresh(post)
         return post
@@ -288,6 +299,7 @@ class ContentPipeline:
         return article
 
     async def moderate_and_publish(self, post: GeneratedPost, is_child_safe: bool = False) -> bool:
+        """Run AI moderation. Safe posts become APPROVED (not yet live on Kawn App)."""
         mod_result = await self.ai.moderate(post.title, post.body, is_child_safe)
 
         moderation = ModerationResult(
@@ -303,12 +315,66 @@ class ContentPipeline:
         self.session.add(moderation)
 
         if mod_result.is_safe:
-            post.status = PostStatus.PUBLISHED
-            post.published_at = datetime.now(timezone.utc)
+            post.status = PostStatus.APPROVED
+            post.published_at = None
             return True
 
         post.status = PostStatus.BLOCKED
         return False
+
+    async def publish_to_kawn(
+        self,
+        post: GeneratedPost,
+        community: Community,
+    ) -> GeneratedPost:
+        """Publish an approved post to the Kawn App community feed."""
+        from app.services.kawn_publisher import KawnPublishError, get_kawn_publisher
+
+        if post.status not in (PostStatus.APPROVED, PostStatus.PUBLISHED):
+            raise KawnPublishError(f"Post must be approved before publishing (current: {post.status.value}).")
+        if post.kawn_post_id:
+            return post
+
+        publisher = get_kawn_publisher()
+        result = await publisher.publish_post(community, post)
+
+        post.status = PostStatus.PUBLISHED
+        post.kawn_post_id = result.kawn_post_id
+        post.published_at = datetime.now(timezone.utc)
+        await self.session.flush()
+        await self._record_kawn_publish_analytics(post.community_id)
+        return post
+
+    async def publish_posts(self, post_ids: list[UUID] | None = None, community_id: UUID | None = None) -> int:
+        from app.services.kawn_publisher import KawnPublishError
+
+        query = (
+            select(GeneratedPost, Community)
+            .join(Community, Community.id == GeneratedPost.community_id)
+            .where(GeneratedPost.status == PostStatus.APPROVED)
+        )
+        if post_ids:
+            query = query.where(GeneratedPost.id.in_(post_ids))
+        if community_id:
+            query = query.where(GeneratedPost.community_id == community_id)
+
+        result = await self.session.execute(query)
+        rows = result.all()
+        count = 0
+        errors: list[str] = []
+
+        for post, community in rows:
+            try:
+                await self.publish_to_kawn(post, community)
+                count += 1
+            except KawnPublishError as e:
+                logger.error("Failed to publish post %s to Kawn App: %s", post.id, e)
+                errors.append(str(e))
+
+        if errors and count == 0:
+            raise KawnPublishError(errors[0])
+
+        return count
 
     async def block_post(self, post_id: UUID, reason: str | None = None) -> GeneratedPost | None:
         result = await self.session.execute(select(GeneratedPost).where(GeneratedPost.id == post_id))
@@ -329,23 +395,6 @@ class ContentPipeline:
         self.session.add(moderation)
         await self.session.flush()
         return post
-
-    async def publish_posts(self, post_ids: list[UUID] | None = None, community_id: UUID | None = None) -> int:
-        query = select(GeneratedPost).where(GeneratedPost.status == PostStatus.APPROVED)
-        if post_ids:
-            query = query.where(GeneratedPost.id.in_(post_ids))
-        if community_id:
-            query = query.where(GeneratedPost.community_id == community_id)
-
-        result = await self.session.execute(query)
-        posts = result.scalars().all()
-        count = 0
-        for post in posts:
-            post.status = PostStatus.PUBLISHED
-            post.published_at = datetime.now(timezone.utc)
-            count += 1
-        await self.session.flush()
-        return count
 
     async def _update_analytics(self, community_id: UUID, post: GeneratedPost) -> None:
         today = date.today()
@@ -368,9 +417,7 @@ class ContentPipeline:
             self.session.add(analytics)
 
         analytics.posts_generated = (analytics.posts_generated or 0) + 1
-        if post.status == PostStatus.PUBLISHED:
-            analytics.posts_published = (analytics.posts_published or 0) + 1
-        elif post.status == PostStatus.BLOCKED:
+        if post.status == PostStatus.BLOCKED:
             analytics.posts_blocked = (analytics.posts_blocked or 0) + 1
         elif post.status == PostStatus.FAILED:
             analytics.posts_failed = (analytics.posts_failed or 0) + 1
@@ -379,6 +426,29 @@ class ContentPipeline:
         pt = post.post_type.value
         breakdown[pt] = breakdown.get(pt, 0) + 1
         analytics.post_type_breakdown = breakdown
+        await self.session.flush()
+
+    async def _record_kawn_publish_analytics(self, community_id: UUID) -> None:
+        today = date.today()
+        result = await self.session.execute(
+            select(Analytics).where(
+                Analytics.community_id == community_id,
+                Analytics.metric_date == today,
+            )
+        )
+        analytics = result.scalar_one_or_none()
+        if not analytics:
+            analytics = Analytics(
+                community_id=community_id,
+                metric_date=today,
+                posts_generated=0,
+                posts_published=0,
+                posts_blocked=0,
+                posts_failed=0,
+            )
+            self.session.add(analytics)
+
+        analytics.posts_published = (analytics.posts_published or 0) + 1
         await self.session.flush()
 
     async def run_community_pipeline(self, community_id: UUID, posts_count: int = 1) -> PublishingJob:
@@ -399,10 +469,12 @@ class ContentPipeline:
                 post = await self.generate_post(community_id)
                 if post:
                     job.posts_generated += 1
-                    if post.status == PostStatus.PUBLISHED:
+                    if post.kawn_post_id:
                         job.posts_published += 1
                     elif post.status == PostStatus.BLOCKED:
                         job.posts_blocked += 1
+                    elif post.status == PostStatus.APPROVED:
+                        pass
                     else:
                         job.posts_failed += 1
 

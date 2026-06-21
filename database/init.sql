@@ -20,6 +20,7 @@ CREATE TABLE communities (
     publishing_frequency VARCHAR(20) DEFAULT 'daily',
     is_active BOOLEAN DEFAULT TRUE,
     is_child_safe BOOLEAN DEFAULT FALSE,
+    kawn_community_id VARCHAR(100),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -159,6 +160,7 @@ CREATE TABLE generated_posts (
     status post_status DEFAULT 'draft',
     scheduled_at TIMESTAMPTZ,
     published_at TIMESTAMPTZ,
+    kawn_post_id VARCHAR(100),
     provider VARCHAR(50),
     model VARCHAR(100),
     created_at TIMESTAMPTZ DEFAULT NOW(),

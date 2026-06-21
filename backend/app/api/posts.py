@@ -64,6 +64,7 @@ async def _post_to_response(post: GeneratedPost, db: AsyncSession) -> PostRespon
         hashtags=post.hashtags or [],
         poll_options=post.poll_options,
         status=post.status,
+        kawn_post_id=post.kawn_post_id,
         sources=sources,
         moderation=moderation,
         scheduled_at=post.scheduled_at,
@@ -164,8 +165,13 @@ async def generate_post(data: PostGenerateRequest, db: AsyncSession = Depends(ge
 
 @router.post("/publish")
 async def publish_posts(data: PostPublishRequest, db: AsyncSession = Depends(get_db)):
+    from app.services.kawn_publisher import KawnPublishError
+
     pipeline = ContentPipeline(db)
-    count = await pipeline.publish_posts(data.post_ids or None, data.community_id)
+    try:
+        count = await pipeline.publish_posts(data.post_ids or None, data.community_id)
+    except KawnPublishError as e:
+        raise HTTPException(status_code=502, detail=str(e)) from e
     return {"published_count": count}
 
 

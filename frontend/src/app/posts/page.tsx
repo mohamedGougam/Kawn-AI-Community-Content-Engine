@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ShieldAlert, Eye } from 'lucide-react';
+import { ShieldAlert, Eye, Send } from 'lucide-react';
 import { api, Post, formatDate, formatPostType, statusBadge } from '@/lib/api';
 
 export default function PostsPage() {
@@ -19,6 +19,17 @@ export default function PostsPage() {
   };
 
   useEffect(() => { load(); }, [page, statusFilter]);
+
+  const handlePublish = async (id: string) => {
+    if (!confirm('Publish this post to the Kawn App community?')) return;
+    try {
+      await api.publishPosts([id]);
+      load();
+      setSelected(null);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Publish failed');
+    }
+  };
 
   const handleBlock = async (id: string) => {
     if (!confirm('Block this post?')) return;
@@ -45,7 +56,8 @@ export default function PostsPage() {
           <button onClick={handleReset} className="btn-secondary text-red-400">Clear all posts</button>
           <select className="select w-48" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
           <option value="">All Statuses</option>
-          <option value="published">Published</option>
+          <option value="approved">Approved</option>
+          <option value="published">Published to Kawn</option>
           <option value="blocked">Blocked</option>
           <option value="pending_moderation">Pending</option>
           <option value="draft">Draft</option>
@@ -120,6 +132,14 @@ export default function PostsPage() {
                   <p className="text-xs text-red-400">Flags: {selected.moderation.flags.join(', ')}</p>
                 )}
               </div>
+            )}
+            {selected.status === 'approved' && (
+              <button onClick={() => handlePublish(selected.id)} className="btn-primary flex items-center gap-2">
+                <Send className="h-4 w-4" /> Publish to Kawn App
+              </button>
+            )}
+            {selected.kawn_post_id && (
+              <p className="text-xs text-emerald-400">Kawn post ID: {selected.kawn_post_id}</p>
             )}
             {selected.status !== 'blocked' && (
               <button onClick={() => handleBlock(selected.id)} className="btn-secondary flex items-center gap-2 text-red-400">

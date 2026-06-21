@@ -32,6 +32,7 @@ export interface Community {
   publishing_frequency: string;
   is_active: boolean;
   is_child_safe: boolean;
+  kawn_community_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -59,6 +60,7 @@ export interface Post {
   hashtags: string[];
   poll_options: string[] | null;
   status: string;
+  kawn_post_id?: string | null;
   sources: { source_name: string; source_url: string | null }[];
   moderation: {
     is_safe: boolean;
@@ -75,6 +77,7 @@ export interface AnalyticsOverview {
   total_communities: number;
   active_communities: number;
   total_generated_posts: number;
+  total_approved_posts: number;
   total_published_posts: number;
   total_blocked_posts: number;
   total_failed_posts: number;
@@ -148,6 +151,11 @@ export const api = {
   },
   generatePost: (community_id: string, post_type?: string) =>
     fetchApi<Post>('/api/posts/generate', { method: 'POST', body: JSON.stringify({ community_id, post_type }) }),
+  publishPosts: (post_ids: string[]) =>
+    fetchApi<{ published_count: number }>('/api/posts/publish', {
+      method: 'POST',
+      body: JSON.stringify({ post_ids }),
+    }),
   blockPost: (post_id: string, reason?: string) =>
     fetchApi<Post>('/api/posts/block', { method: 'POST', body: JSON.stringify({ post_id, reason }) }),
   getPublishingJobs: () => fetchApi<PublishingJob[]>('/api/posts/jobs'),
@@ -162,7 +170,7 @@ export const api = {
 export function statusBadge(status: string) {
   const map: Record<string, string> = {
     published: 'badge-success',
-    approved: 'badge-success',
+    approved: 'badge-info',
     blocked: 'badge-danger',
     failed: 'badge-danger',
     draft: 'badge-neutral',
