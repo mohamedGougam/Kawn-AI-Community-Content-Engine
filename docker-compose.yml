@@ -1,0 +1,63 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: kawn-content-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-kawn}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kawn_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-kawn_content_engine}
+    ports:
+      - "5433:5432"  # host 5433 — avoids conflict if local PostgreSQL already uses 5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kawn} -d ${POSTGRES_DB:-kawn_content_engine}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: kawn-content-backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-kawn}:${POSTGRES_PASSWORD:-kawn_secret}@db:5432/${POSTGRES_DB:-kawn_content_engine}
+      DATABASE_URL_SYNC: postgresql://${POSTGRES_USER:-kawn}:${POSTGRES_PASSWORD:-kawn_secret}@db:5432/${POSTGRES_DB:-kawn_content_engine}
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://frontend:3000}
+      SCHEDULER_ENABLED: ${SCHEDULER_ENABLED:-true}
+      AI_DEFAULT_PROVIDER: ${AI_DEFAULT_PROVIDER:-mock}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      HUGGINGFACE_API_KEY: ${HUGGINGFACE_API_KEY:-}
+      NEWS_API_KEY: ${NEWS_API_KEY:-}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
+        API_PROXY_URL: http://backend:8000
+    container_name: kawn-content-frontend
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
+      API_PROXY_URL: http://backend:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
