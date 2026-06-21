@@ -179,6 +179,9 @@ class SourceCollector:
         sources = result.scalars().all()
         total = 0
         for source in sources:
-            total += await self.collect_source(source)
+            try:
+                total += await self.collect_source(source)
+            except Exception as e:
+                logger.error("Failed to collect from %s for community %s: %s", source.name, community_id, e)
         await self.session.flush()
         return total

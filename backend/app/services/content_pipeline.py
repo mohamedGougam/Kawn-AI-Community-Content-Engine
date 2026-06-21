@@ -74,9 +74,10 @@ class ContentPipeline:
         )
         return result.scalar_one_or_none()
 
-    async def _get_relevant_article(self, community: Community) -> SourceArticle | None:
-        blocked = {b.topic.lower() for b in community.blocked_topics}
-        category = community.category.lower()
+    async def _get_relevant_article(self, community_ctx: dict) -> SourceArticle | None:
+        blocked = {t.lower() for t in community_ctx.get("blocked_topics", [])}
+        category = (community_ctx.get("category") or "").lower()
+        tags = [t.lower() for t in community_ctx.get("tags", [])]
 
         result = await self.session.execute(
             select(SourceArticle)
@@ -91,7 +92,7 @@ class ContentPipeline:
             if any(b in topic for b in blocked):
                 continue
             if category in ("football", "cricket", "sports") and topic and category not in topic:
-                if not any(t in topic for t in [tag.tag.lower() for tag in community.tags]):
+                if not any(t in topic for t in tags):
                     continue
             return article
 
@@ -179,7 +180,10 @@ class ContentPipeline:
         is_child_safe = community.is_child_safe
 
         # Fetch latest articles from this community's linked sources
-        await self.collector.collect_for_community(community_id_val)
+        try:
+            await self.collector.collect_for_community(community_id_val)
+        except Exception as e:
+            logger.warning("Source collection failed for %s: %s", community_ctx["name"], e)
 
         if article_id:
             result = await self.session.execute(
@@ -187,10 +191,10 @@ class ContentPipeline:
             )
             article = result.scalar_one_or_none()
         else:
-            article = await self._get_relevant_article(community)
+            article = await self._get_relevant_article(community_ctx)
 
         if not article:
-            article = await self._create_fallback_article(community)
+            article = await self._create_fallback_article(community_ctx, community_id_val)
 
         analysis, summary = await self.process_article(article, community_ctx)
         chosen_type = post_type or await self._pick_post_type(community_id_val)
@@ -256,7 +260,7 @@ class ContentPipeline:
         await self.session.refresh(post)
         return post
 
-    async def _create_fallback_article(self, community: Community) -> SourceArticle:
+    async def _create_fallback_article(self, community_ctx: dict, community_id: UUID) -> SourceArticle:
         from app.models import Source
 
         result = await self.session.execute(select(Source).where(Source.is_active == True).limit(1))  # noqa: E712
@@ -264,17 +268,19 @@ class ContentPipeline:
         if not source:
             raise ValueError("No active sources configured")
 
+        name = community_ctx["name"]
+        category = community_ctx["category"]
         article = SourceArticle(
             source_id=source.id,
             source_name="Kawn Community Engine",
             source_url="https://kawn.app",
-            title=f"Community update for {community.name}",
-            category=community.category,
-            topic=community.category,
-            raw_content=f"Latest discussions and updates for the {community.name} community. "
-            f"Category: {community.category}. Join the conversation!",
+            title=f"Community update for {name}",
+            category=category,
+            topic=category,
+            raw_content=f"Latest discussions and updates for the {name} community. "
+            f"Category: {category}. Join the conversation!",
             content_hash=hashlib.sha256(
-                f"fallback-{community.id}-{datetime.now(timezone.utc).timestamp()}".encode()
+                f"fallback-{community_id}-{datetime.now(timezone.utc).timestamp()}".encode()
             ).hexdigest(),
         )
         self.session.add(article)

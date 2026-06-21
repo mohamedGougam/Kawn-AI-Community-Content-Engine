@@ -1,5 +1,6 @@
 """Posts API routes."""
 
+import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -21,6 +22,7 @@ from app.schemas import (
 from app.services.content_pipeline import ContentPipeline
 
 router = APIRouter(prefix="/api/posts", tags=["posts"])
+logger = logging.getLogger(__name__)
 
 
 async def _post_to_response(post: GeneratedPost, db: AsyncSession) -> PostResponse:
@@ -150,7 +152,11 @@ async def get_post(post_id: UUID, db: AsyncSession = Depends(get_db)):
 @router.post("/generate", response_model=PostResponse, status_code=201)
 async def generate_post(data: PostGenerateRequest, db: AsyncSession = Depends(get_db)):
     pipeline = ContentPipeline(db)
-    post = await pipeline.generate_post(data.community_id, data.post_type, data.article_id)
+    try:
+        post = await pipeline.generate_post(data.community_id, data.post_type, data.article_id)
+    except Exception as e:
+        logger.exception("Post generation failed for community %s", data.community_id)
+        raise HTTPException(status_code=500, detail=f"Post generation failed: {e}") from e
     if not post:
         raise HTTPException(status_code=404, detail="Community not found or inactive")
     return await _post_to_response(post, db)
