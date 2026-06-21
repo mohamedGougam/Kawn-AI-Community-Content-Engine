@@ -21,6 +21,13 @@ config = get_settings()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting Kawn AI Community Content Engine...")
+
+    try:
+        from app.db_init import ensure_database_schema
+        await ensure_database_schema()
+    except Exception as e:
+        logger.error("Database init failed: %s", e)
+
     start_scheduler()
 
     try:
