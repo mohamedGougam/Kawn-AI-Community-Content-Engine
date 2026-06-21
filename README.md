@@ -137,6 +137,19 @@ docker compose up --build
 - API Docs: http://localhost:8000/docs
 - Health Check: http://localhost:8000/api/health
 
+> **Tip:** Clone the repo once and run Docker from that folder only. If you see `container name "/kawn-content-db" is already in use`, run `docker compose down` first, or stop old containers: `docker stop kawn-content-db kawn-content-backend kawn-content-frontend`.
+
+## Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| Port 5432 in use | Docker maps PostgreSQL to host port **5433** (see `docker-compose.yml`) |
+| Container name conflict | `docker compose down` then `docker compose up -d --build` |
+| Empty posts after generate | Restart backend after `.env` changes: `docker compose restart backend` |
+| Mock/sample posts on first run | Set `SEED_SAMPLE_DATA=false` in `.env` (default) |
+| Clear all posts | `POST /api/admin/reset-content` or **Generated Posts → Clear all posts** |
+| Community source mapping | `GET /api/sources/mapping` or **Sources** page |
+
 ## Local Development (Without Docker)
 
 ### Prerequisites
