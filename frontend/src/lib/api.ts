@@ -11,7 +11,20 @@ async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const error = await res.text();
-    throw new Error(error || `API error: ${res.status}`);
+    let message = error || `API error: ${res.status}`;
+
+    try {
+      const json = JSON.parse(error) as { detail?: string; message?: string };
+      message = json.detail || json.message || message;
+    } catch {
+      if (/^\s*</.test(error)) {
+        message = `Backend unavailable (${res.status}). Check that the API service is running and API_PROXY_URL is set on Render.`;
+      } else if (message.length > 240) {
+        message = `${message.slice(0, 240)}...`;
+      }
+    }
+
+    throw new Error(message);
   }
   if (res.status === 204) return {} as T;
   return res.json();

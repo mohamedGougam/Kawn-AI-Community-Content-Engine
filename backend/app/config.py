@@ -33,6 +33,13 @@ class Settings(BaseSettings):
     kawn_auto_publish: bool = False
 
     @property
+    def async_database_url(self) -> str:
+        url = self.database_url
+        if url.startswith("postgresql://"):
+            return url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return url
+
+    @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 

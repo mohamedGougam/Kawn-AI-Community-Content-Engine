@@ -36,7 +36,10 @@ export default function DashboardPage() {
     return (
       <div className="card border-red-500/30">
         <p className="text-red-400">Failed to load dashboard: {error}</p>
-        <p className="mt-2 text-sm text-[var(--muted)]">Ensure the backend is running at http://localhost:8000</p>
+        <p className="mt-2 text-sm text-[var(--muted)]">
+          Ensure the backend is running and the admin service has{' '}
+          <code className="text-xs">API_PROXY_URL</code> set to the backend URL (e.g. on Render).
+        </p>
       </div>
     );
   }
