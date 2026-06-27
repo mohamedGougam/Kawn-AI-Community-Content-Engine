@@ -80,14 +80,14 @@ export default function PostsPage() {
             </thead>
             <tbody>
               {posts.map((p) => (
-                <tr key={p.id} className="table-row">
+                <tr key={p.id} onClick={() => setSelected(p)} className="table-row cursor-pointer hover:bg-white/5">
                   <td className="max-w-xs truncate px-4 py-3 font-medium">{p.title}</td>
                   <td className="px-4 py-3">{p.community_name}</td>
                   <td className="px-4 py-3">{formatPostType(p.post_type)}</td>
                   <td className="px-4 py-3"><span className={`badge ${statusBadge(p.status)}`}>{p.status}</span></td>
                   <td className="px-4 py-3 text-xs">{formatDate(p.created_at)}</td>
                   <td className="px-4 py-3">
-                    <button onClick={() => setSelected(p)} className="rounded p-1 hover:bg-white/10"><Eye className="h-4 w-4" /></button>
+                    <button onClick={(e) => { e.stopPropagation(); setSelected(p); }} className="rounded p-1 hover:bg-white/10"><Eye className="h-4 w-4" /></button>
                   </td>
                 </tr>
               ))}
