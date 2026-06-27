@@ -69,16 +69,16 @@ def start_scheduler():
     )
 
     scheduler.add_job(
-        _run_hourly_generation,
-        CronTrigger(minute=0),
-        id="hourly_generation",
+        _run_content_generation,
+        CronTrigger(hour=8, minute=0),
+        id="morning_generation",
         replace_existing=True,
     )
 
     scheduler.add_job(
         _run_content_generation,
-        CronTrigger(hour=6, minute=0),
-        id="daily_full_pipeline",
+        CronTrigger(hour=20, minute=0),
+        id="evening_generation",
         replace_existing=True,
     )
 

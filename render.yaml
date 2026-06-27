@@ -32,6 +32,12 @@ services:
         value: mock
       - key: SEED_SAMPLE_DATA
         value: "false"
+      - key: KAWN_APP_API_URL
+        sync: false
+      - key: KAWN_APP_API_KEY
+        sync: false
+      - key: KAWN_AUTO_PUBLISH
+        value: "true"
 
   - type: web
     name: kawn-content-admin

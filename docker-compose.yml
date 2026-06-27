@@ -34,8 +34,11 @@ services:
       GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
       HUGGINGFACE_API_KEY: ${HUGGINGFACE_API_KEY:-}
       NEWS_API_KEY: ${NEWS_API_KEY:-}
+      KAWN_APP_API_URL: ${KAWN_APP_API_URL:-http://host.docker.internal:8000}
+      KAWN_APP_API_KEY: ${KAWN_APP_API_KEY:-local_shared_secret}
+      KAWN_AUTO_PUBLISH: ${KAWN_AUTO_PUBLISH:-true}
     ports:
-      - "8000:8000"
+      - "8001:8000"
     depends_on:
       db:
         condition: service_healthy
